@@ -1,0 +1,146 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/JanetDev/Practica3.3_MD/blob/main/Funciones%20para%20dividir%20conjunto%20de%20datos\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "rYiKdfLz3QUG"
+      },
+      "outputs": [],
+      "source": [
+        "from random import seed\n",
+        "from random import randrange\n",
+        "from math import sqrt\n",
+        "from sklearn.datasets import load_breast_cancer\n",
+        "\n",
+        "# Cargar breast cancer dataset de scikit-learn\n",
+        "data = load_breast_cancer()\n",
+        "X, y = data.data, data.target\n",
+        "\n",
+        "# Combine características y etiquetas en un conjunto de datos\n",
+        "dataset = [list(X[i]) + [y[i]] for i in range(len(X))]\n",
+        "\n",
+        "# Dividir un conjunto de datos en k pliegues\n",
+        "def cross_validation_split(dataset, n_folds):\n",
+        "    dataset_split = list()\n",
+        "    dataset_copy = list(dataset)\n",
+        "    fold_size = int(len(dataset) / n_folds)\n",
+        "    for i in range(n_folds):\n",
+        "        fold = list()\n",
+        "        while len(fold) < fold_size:\n",
+        "            index = randrange(len(dataset_copy))\n",
+        "            fold.append(dataset_copy.pop(index))\n",
+        "        dataset_split.append(fold)\n",
+        "    return dataset_split\n",
+        "\n",
+        "# Calcular el porcentaje de precisión\n",
+        "def accuracy_metric(actual, predicted):\n",
+        "    correct = 0\n",
+        "    for i in range(len(actual)):\n",
+        "        if actual[i] == predicted[i]:\n",
+        "            correct += 1\n",
+        "    return correct / float(len(actual)) * 100.0\n",
+        "\n",
+        "# Evaluar un algoritmo mediante una división de validación cruzada\n",
+        "def evaluate_algorithm(dataset, algorithm, n_folds, *args):\n",
+        "    folds = cross_validation_split(dataset, n_folds)\n",
+        "    scores = list()\n",
+        "    for fold in folds:\n",
+        "        train_set = list(folds)\n",
+        "        train_set.remove(fold)\n",
+        "        train_set = sum(train_set, [])\n",
+        "        test_set = list()\n",
+        "        for row in fold:\n",
+        "            row_copy = list(row)\n",
+        "            test_set.append(row_copy)\n",
+        "            row_copy[-1] = None\n",
+        "        predicted, trees = algorithm(train_set, test_set, *args)\n",
+        "        actual = [row[-1] for row in fold]\n",
+        "        accuracy = accuracy_metric(actual, predicted)\n",
+        "        scores.append(accuracy)\n",
+        "    return scores, trees\n",
+        "# Dividir un conjunto de datos según un atributo y un valor de atributo\n",
+        "def test_split(index, value, dataset):\n",
+        "\tleft, right = list(), list()\n",
+        "\tfor row in dataset:\n",
+        "\t\tif row[index] < value:\n",
+        "\t\t\tleft.append(row)\n",
+        "\t\telse:\n",
+        "\t\t\tright.append(row)\n",
+        "\treturn left, right\n",
+        "\n",
+        "# Calcular el índice de Gini para un conjunto de datos dividido\n",
+        "def gini_index(groups, classes):\n",
+        "\t# contar todas las muestras en el punto de división\n",
+        "\tn_instances = float(sum([len(group) for group in groups]))\n",
+        "\t# Índice de Gini ponderado por suma para cada grupo\n",
+        "\tgini = 0.0\n",
+        "\tfor group in groups:\n",
+        "\t\tsize = float(len(group))\n",
+        "\t\t# evitar dividir por cero\n",
+        "\t\tif size == 0:\n",
+        "\t\t\tcontinue\n",
+        "\t\tscore = 0.0\n",
+        "\t\t# calificar al grupo según el puntaje de cada clase\n",
+        "\t\tfor class_val in classes:\n",
+        "\t\t\tp = [row[-1] for row in group].count(class_val) / size\n",
+        "\t\t\tscore += p * p\n",
+        "\t\t# ponderar la puntuación del grupo por su tamaño relativo\n",
+        "\t\tgini += (1.0 - score) * (size / n_instances)\n",
+        "\treturn gini\n",
+        "\n",
+        "# Seleccione el mejor punto de división para un conjunto de datos\n",
+        "def get_split(dataset, n_features):\n",
+        "\tclass_values = list(set(row[-1] for row in dataset))\n",
+        "\tb_index, b_value, b_score, b_groups = 100, 100, 100, None\n",
+        "\tfeatures = list()\n",
+        "\twhile len(features) < n_features:\n",
+        "\t\tindex = randrange(len(dataset[0])-1)\n",
+        "\t\tif index not in features:\n",
+        "\t\t\tfeatures.append(index)\n",
+        "\tfor index in features:\n",
+        "\t\tfor row in dataset:\n",
+        "\t\t\tgroups = test_split(index, row[index], dataset)\n",
+        "\t\t\tgini = gini_index(groups, class_values)\n",
+        "\t\t\tif gini < b_score:\n",
+        "\t\t\t\tb_index, b_value, b_score, b_groups = index, row[index], gini, groups\n",
+        "\treturn {'index':b_index, 'value':b_value, 'groups':b_groups}\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "Nj5Yj4993Rz2"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
